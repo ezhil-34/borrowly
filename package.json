@@ -1,0 +1,32 @@
+{
+  "name": "borrowly",
+  "version": "2.0.0",
+  "private": true,
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "server": "node --watch server/index.js",
+    "services:all": "node server/runner.js",
+    "service:auth": "node server/services/auth/server.js",
+    "service:catalog": "node server/services/catalog/server.js",
+    "service:bookings": "node server/services/bookings/server.js",
+    "service:messaging": "node server/services/messaging/server.js",
+    "client": "npm --prefix client run dev",
+    "dev": "concurrently -n gateway,web -c cyan,green \"npm run server\" \"npm run client\"",
+    "dev:micro": "concurrently -n microservices,web -c magenta,green \"npm run services:all\" \"npm run client\"",
+    "build": "npm --prefix client install && npm --prefix client run build",
+    "setup": "npm install && npm run build",
+    "seed": "node server/seed.js --force",
+    "migrate": "node server/migrate-to-cloud.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.2",
+    "firebase-admin": "^14.5.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

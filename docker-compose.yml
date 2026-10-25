@@ -1,0 +1,23 @@
+##
+## Borrowly — Docker Compose
+## Firebase replaces Redis. Use this file for the optional Firestore Emulator.
+##
+## Usage:
+##   docker compose up -d          → starts Firestore emulator
+##   FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run dev
+##
+services:
+  firestore-emulator:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command: >
+      gcloud emulators firestore start
+      --host-port=0.0.0.0:8080
+      --project=borrowly-app
+    ports:
+      - "8080:8080"
+    environment:
+      - CLOUDSDK_CORE_PROJECT=borrowly-app
+
+  ## Optional: Firebase Emulator Suite (Auth + Firestore + Storage)
+  ## Requires firebase-tools installed globally: npm i -g firebase-tools
+  ## Then run: firebase emulators:start
