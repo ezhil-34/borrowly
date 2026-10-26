@@ -19,9 +19,12 @@ function createGatewayApp() {
   app.use(express.json({ limit: '6mb' }));
   app.use(authenticate);
 
-  // Serve static client bundle if built
+  // Serve static client bundle — check both local dev path and Render production path
   const clientDist = path.join(__dirname, '../../client/dist');
-  app.use(express.static(clientDist));
+  const serverPublic = path.join(__dirname, '../public');
+  const staticDir = require('fs').existsSync(serverPublic + '/index.html') ? serverPublic : clientDist;
+  app.use(express.static(staticDir));
+
 
   // Mount Microservice API Routers
   app.use('/api', authRoutes);
@@ -49,15 +52,11 @@ function createGatewayApp() {
     res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
   });
 
-  // SPA fallback to client/dist/index.html
+  // SPA fallback to index.html
   app.get('*', (req, res) => {
-    res.sendFile(path.join(clientDist, 'index.html'), (err) => {
+    res.sendFile(path.join(staticDir, 'index.html'), (err) => {
       if (err) {
-        res
-          .status(200)
-          .send(
-            'Frontend not built yet. Run: npm --prefix client run dev (for Vite on :5173) or npm run build.'
-          );
+        res.status(200).send('Frontend not built yet. Run: cd client && npm run build');
       }
     });
   });

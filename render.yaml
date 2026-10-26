@@ -1,0 +1,44 @@
+services:
+  # ─── 1. Node.js Backend + React Frontend ────────────────────────────────────
+  - type: web
+    name: borrowly-app
+    runtime: node
+    region: singapore   # closest free region to India
+    plan: free
+    buildCommand: |
+      npm install
+      cd client && npm install && npm run build && cd ..
+      cp -r client/dist server/public || true
+    startCommand: node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        sync: false          # set manually in Render dashboard
+      - key: FIREBASE_PROJECT_ID
+        value: borrowly-2b3ae
+      - key: GEMINI_API_KEY
+        sync: false          # set manually in Render dashboard
+      - key: ML_SERVICE_HOST
+        fromService:
+          name: borrowly-ml
+          type: web
+          property: host
+      - key: ML_SERVICE_PORT
+        value: 443
+      - key: ML_SERVICE_PROTOCOL
+        value: https
+
+  # ─── 2. Python ML Microservice ───────────────────────────────────────────────
+  - type: web
+    name: borrowly-ml
+    runtime: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r ml_project/requirements.txt
+    startCommand: cd ml_project && uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PORT
+        value: 10000
