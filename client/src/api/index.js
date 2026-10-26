@@ -25,7 +25,13 @@ export const itemsApi = {
   deleteItem: (id) => request(`/items/${id}`, { method: 'DELETE' }),
   getMyItems: () => request('/my/items', { method: 'GET' }),
   getSavedIds: () => request('/saved', { method: 'GET' }),
-  toggleSave: (id) => request(`/saved/${id}`, { method: 'POST', body: {} })
+  toggleSave: (id) => request(`/saved/${id}`, { method: 'POST', body: {} }),
+  predictPrice: (listingData) => request('/predict-price', { method: 'POST', body: listingData }),
+  getMLOpsStats: () => request('/mlops/stats', { method: 'GET' })
+};
+
+export const mlopsApi = {
+  getStats: () => request('/mlops/stats', { method: 'GET' })
 };
 
 export const bookingsApi = {

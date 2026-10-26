@@ -25,6 +25,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import HelpPage from './pages/HelpPage';
 import HowItWorksPage from './pages/HowItWorksPage';
 import ProfilePage from './pages/ProfilePage';
+import MLOpsPage from './pages/MLOpsPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/help" element={<HelpPage />} />
           <Route path="/how" element={<HowItWorksPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/mlops" element={<MLOpsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>

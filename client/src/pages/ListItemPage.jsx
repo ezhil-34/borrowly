@@ -44,6 +44,8 @@ export default function ListItemPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
+  const [mlPricing, setMlPricing] = useState(null);
+  const [loadingMlPrice, setLoadingMlPrice] = useState(false);
 
   const [formData, setFormData] = useState({
     images: [],
@@ -134,6 +136,31 @@ export default function ListItemPage() {
     return '';
   };
 
+  const handleFetchPriceSuggestion = async (cat, brand, cond, area) => {
+    try {
+      setLoadingMlPrice(true);
+      const [lat, lng] = AREAS[area || formData.area] || AREAS.Adyar;
+      const res = await itemsApi.predictPrice({
+        category: cat || formData.category,
+        brand: brand || formData.brand || 'Generic',
+        condition: cond || formData.condition || 'Good',
+        area: area || formData.area || 'Adyar',
+        lat,
+        lng
+      });
+      if (res && res.suggested_price) {
+        setMlPricing(res);
+        if (!formData.price) {
+          setFormData((prev) => ({ ...prev, price: String(res.suggested_price) }));
+        }
+      }
+    } catch {
+      // Ignore background ML fetch failure
+    } finally {
+      setLoadingMlPrice(false);
+    }
+  };
+
   const handleNextStep = async () => {
     const error = validateCurrentStep();
     if (error) {
@@ -143,6 +170,9 @@ export default function ListItemPage() {
     setErrorMsg('');
 
     if (currentStep < 6) {
+      if (currentStep === 2 && !mlPricing) {
+        handleFetchPriceSuggestion(formData.category, formData.brand, formData.condition, formData.area);
+      }
       setCurrentStep((step) => step + 1);
       return;
     }
@@ -341,6 +371,66 @@ export default function ListItemPage() {
         {/* Step 3: Pricing */}
         {currentStep === 3 && (
           <div className="space-y-4">
+            {/* ML AI Price Suggestion Card */}
+            <div className="rounded-2xl bg-gradient-to-r from-emerald-50 via-forest/5 to-teal-50 p-4 border border-emerald-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-2.5">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-forest text-white text-xs shrink-0 shadow-sm">
+                    🤖
+                  </span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-bold text-forest uppercase tracking-wide">
+                        ML Price Recommendation Model
+                      </h4>
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                        HistGradientBoosting Quantile Regressor
+                      </span>
+                    </div>
+                    {loadingMlPrice ? (
+                      <p className="mt-1 text-xs text-mute animate-pulse">Calculating optimal rental price using market signals...</p>
+                    ) : mlPricing ? (
+                      <div className="mt-1 text-xs text-stone-700">
+                        <span>Suggested: </span>
+                        <span className="text-base font-black text-forest">₹{mlPricing.suggested_price}</span>
+                        <span className="text-mute font-medium"> / day</span>
+                        <span className="mx-2 text-stone-300">·</span>
+                        <span className="text-mute">
+                          Recommended range: <b>₹{mlPricing.price_low} – ₹{mlPricing.price_high}</b>
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-xs text-mute">
+                        Click below to estimate fair market pricing based on category demand, condition, and local area data.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {mlPricing && (
+                    <Button
+                      type="button"
+                      variant="lime"
+                      size="sm"
+                      onClick={() => setFormData((prev) => ({ ...prev, price: String(mlPricing.suggested_price) }))}
+                    >
+                      Use ₹{mlPricing.suggested_price}
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    loading={loadingMlPrice}
+                    onClick={() => handleFetchPriceSuggestion(formData.category, formData.brand, formData.condition, formData.area)}
+                  >
+                    {mlPricing ? 'Recalculate' : '✨ Get AI Price'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <Input
                 id="item-price"

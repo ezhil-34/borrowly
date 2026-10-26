@@ -250,11 +250,32 @@ export default function ItemDetailPage() {
               </div>
             </div>
 
+            {/* Gemini LLM AI-Generated Review Summary */}
+            {summary?.aiSummary && (
+              <div className="my-4 rounded-2xl bg-gradient-to-r from-emerald-50/80 via-teal-50/60 to-forest/5 p-4 border border-emerald-200/80 shadow-sm">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-600 text-white text-xs">✨</span>
+                  <span className="text-xs font-bold text-emerald-950 uppercase tracking-wide">
+                    Gemini AI Summary of Reviews
+                  </span>
+                  <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                    Google Gemini
+                  </span>
+                </div>
+                <p className="text-xs text-stone-700 leading-relaxed font-medium">
+                  "{summary.aiSummary}"
+                </p>
+                <div className="mt-2 flex items-center gap-1.5 text-[10px] text-mute">
+                  <span>Based on {summary.basedOn} verified borrower experiences</span>
+                </div>
+              </div>
+            )}
+
             {/* Keyword Themes Summary */}
             {summary?.themes?.length > 0 && (
               <div className="my-4">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-mute mb-2">
-                  What Borrowers Say
+                  Key Feedback Themes
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {summary.themes.map((t) => (

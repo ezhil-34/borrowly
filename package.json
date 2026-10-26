@@ -12,7 +12,9 @@
     "service:bookings": "node server/services/bookings/server.js",
     "service:messaging": "node server/services/messaging/server.js",
     "client": "npm --prefix client run dev",
+    "ml": "python -m uvicorn ml_project.app:app --host 0.0.0.0 --port 8000 --reload",
     "dev": "concurrently -n gateway,web -c cyan,green \"npm run server\" \"npm run client\"",
+    "dev:all": "concurrently -n ml,gateway,web -c yellow,cyan,green \"npm run ml\" \"npm run server\" \"npm run client\"",
     "dev:micro": "concurrently -n microservices,web -c magenta,green \"npm run services:all\" \"npm run client\"",
     "build": "npm --prefix client install && npm --prefix client run build",
     "setup": "npm install && npm run build",
@@ -20,6 +22,7 @@
     "migrate": "node server/migrate-to-cloud.js"
   },
   "dependencies": {
+    "@google-cloud/firestore": "^9.4.0",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.6.1",
     "express": "^4.19.2",

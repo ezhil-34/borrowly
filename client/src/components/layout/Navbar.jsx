@@ -15,8 +15,7 @@ export default function Navbar() {
   };
 
   const navLinkClass = ({ isActive }) =>
-    `text-sm font-semibold transition-colors duration-150 py-1 ${
-      isActive ? 'text-forest border-b-2 border-forest' : 'text-mute hover:text-forest'
+    `text-sm font-semibold transition-colors duration-150 py-1 ${isActive ? 'text-forest border-b-2 border-forest' : 'text-mute hover:text-forest'
     }`;
 
   return (
@@ -46,6 +45,9 @@ export default function Navbar() {
           </NavLink>
           <NavLink to="/messages" className={navLinkClass}>
             Messages
+          </NavLink>
+          <NavLink to="/mlops" className={({ isActive }) => `text-sm font-bold flex items-center gap-1 transition-colors duration-150 py-1 ${isActive ? 'text-forest border-b-2 border-forest' : 'text-emerald-700 hover:text-forest'}`}>
+            <span>📊</span> MLOps
           </NavLink>
         </nav>
 

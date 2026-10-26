@@ -84,11 +84,11 @@ export default function BookingCard({ booking, currentUserId, onAction, onReview
               {/* Role Badge */}
               {isLender ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
-                  🏷️ You are Lending
+                  You are Lending
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-[11px] font-bold text-blue-800">
-                  🎒 You are Borrowing
+                  You are Borrowing
                 </span>
               )}
 
@@ -104,7 +104,7 @@ export default function BookingCard({ booking, currentUserId, onAction, onReview
           {/* Key Metadata Row */}
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-mute">
             <span className="font-medium text-[#232826]">
-              📅 {booking.start} → {booking.end}
+              {booking.start} → {booking.end}
               {booking.quote?.days ? ` (${booking.quote.days}d)` : ''}
             </span>
             <span>·</span>
@@ -187,7 +187,7 @@ export default function BookingCard({ booking, currentUserId, onAction, onReview
           {/* Meeting Location */}
           {booking.meetingDetails && (
             <div className="mt-2.5 rounded-xl bg-stone-50 p-2.5 text-xs text-forest border border-line">
-              <b>📍 Handover / Meeting Details:</b> {booking.meetingDetails}
+              <b> Handover / Meeting Details:</b> {booking.meetingDetails}
             </div>
           )}
 
@@ -223,14 +223,14 @@ export default function BookingCard({ booking, currentUserId, onAction, onReview
 
             {canReview && (
               <Button variant="lime" size="sm" onClick={() => onReview(booking)} className="gap-1.5">
-                <span>⭐</span>
+                <span></span>
                 <span>Leave a Review</span>
               </Button>
             )}
 
             <Link to={`/messages?b=${booking.id}`}>
               <Button variant="ghost" size="sm" className="gap-1.5">
-                <span>💬</span>
+                <span></span>
                 <span>Chat</span>
               </Button>
             </Link>

@@ -90,10 +90,17 @@ export default function ItemCard({ item }) {
           </span>
         </div>
 
-        {/* Recommendation Reason Pill */}
+        {/* Recommendation Reason & ML Funnel Pill */}
         {item.reasons?.[0] && (
-          <div className="mt-2 w-fit rounded-lg bg-lime/20 px-2.5 py-1 text-[11px] font-semibold text-[#1b2a10] border border-lime/40">
-            ✨ {item.reasons[0]}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <div className="w-fit rounded-lg bg-lime/20 px-2.5 py-1 text-[11px] font-semibold text-[#1b2a10] border border-lime/40">
+              ✨ {item.reasons[0]}
+            </div>
+            {item.mlScore != null && (
+              <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+                ML {Math.round(item.mlScore * 100)}% match
+              </span>
+            )}
           </div>
         )}
 

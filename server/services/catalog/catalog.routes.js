@@ -9,6 +9,10 @@ router.get('/items', asyncHandler(catalogController.getItems));
 router.post('/recommendations', asyncHandler(catalogController.getRecommendations));
 router.get('/items/:id', asyncHandler(catalogController.getItem));
 
+// ML Serving & MLOps Monitoring
+router.post('/predict-price', asyncHandler(catalogController.predictPrice));
+router.get('/mlops/stats', asyncHandler(catalogController.getMLOpsStats));
+
 // Authenticated item management
 router.post('/items', requireAuth, asyncHandler(catalogController.createItem));
 router.patch('/items/:id', requireAuth, asyncHandler(catalogController.updateItem));

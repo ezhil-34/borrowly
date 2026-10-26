@@ -68,6 +68,18 @@ async function toggleSaved(req, res) {
   res.json(result);
 }
 
+const mlClient = require('../../common/mlClient');
+
+async function predictPrice(req, res) {
+  const prediction = await mlClient.predictPricing(req.body);
+  res.json(prediction);
+}
+
+async function getMLOpsStats(req, res) {
+  const stats = await mlClient.getMLOpsStats();
+  res.json(stats);
+}
+
 module.exports = {
   getItems,
   getRecommendations,
@@ -77,5 +89,7 @@ module.exports = {
   deleteItem,
   getMyItems,
   getSaved,
-  toggleSaved
+  toggleSaved,
+  predictPrice,
+  getMLOpsStats
 };

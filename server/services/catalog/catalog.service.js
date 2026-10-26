@@ -11,6 +11,7 @@ const {
 } = require('../../common/utils');
 const { rankItems, haversine } = require('./recommender');
 const { summarizeReviews } = require('./reviews.summary');
+const mlClient = require('../../common/mlClient');
 
 const BLOCKING_STATUSES = ['approved', 'ready_for_pickup', 'borrowed'];
 
@@ -127,6 +128,38 @@ async function discover(params = {}, user = null) {
     outputItems = outputItems.filter((i) => i.sim > 0.02);
   }
 
+  // Enhance with Python ML model if available and user is browsing
+  let mlModelUsed = false;
+  try {
+    if (outputItems.length > 0 && !params.sort) {
+      const mlRes = await mlClient.predictRecommendations(user?.id, outputItems);
+      if (mlRes && mlRes.ranked_items?.length) {
+        const mlScoreMap = new Map(mlRes.ranked_items.map((r) => [r.id, r]));
+        outputItems = outputItems.map((item) => {
+          const mlInfo = mlScoreMap.get(item.id);
+          if (mlInfo) {
+            return {
+              ...item,
+              mlScore: mlInfo.ml_score,
+              pClick: mlInfo.p_click,
+              pBook: mlInfo.p_book,
+              reasons: [mlInfo.rank_reason, ...(item.reasons || [])].slice(0, 2)
+            };
+          }
+          return item;
+        });
+
+        // Blended score prioritizing 2-stage ML expected booking probability
+        outputItems.sort((a, b) => {
+          const scoreA = (a.mlScore != null ? a.mlScore * 10 : 0) + (a.score || 0);
+          const scoreB = (b.mlScore != null ? b.mlScore * 10 : 0) + (b.score || 0);
+          return scoreB - scoreA;
+        });
+        mlModelUsed = true;
+      }
+    }
+  } catch {}
+
   const sortStrategies = {
     distance: (a, b) => (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9),
     price: (a, b) => a.price - b.price,
@@ -140,9 +173,11 @@ async function discover(params = {}, user = null) {
 
   return {
     items: outputItems,
-    mode: ranked.mode,
+    mode: mlModelUsed ? 'ml_2stage_funnel' : ranked.mode,
     weights: ranked.weights,
-    note: ranked.note
+    note: mlModelUsed
+      ? 'Ranked using trained HistGradientBoosting 2-stage expected booking funnel (P(click) × P(book|click)).'
+      : ranked.note
   };
 }
 
@@ -204,7 +239,7 @@ async function getItemDetails(itemId, context = {}, user = null) {
       avg: avgRating,
       dist: starDistribution
     },
-    summary: summarizeReviews(reviews)
+    summary: await summarizeReviews(reviews, 1, item.title)
   };
 }
 

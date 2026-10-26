@@ -1,23 +1,31 @@
-##
-## Borrowly — Docker Compose
-## Firebase replaces Redis. Use this file for the optional Firestore Emulator.
-##
-## Usage:
-##   docker compose up -d          → starts Firestore emulator
-##   FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run dev
-##
+# ==============================================================================
+# Borrowly Full-Stack Docker Compose (All-in-One + Optional ML & Firestore)
+# ==============================================================================
 services:
-  firestore-emulator:
-    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
-    command: >
-      gcloud emulators firestore start
-      --host-port=0.0.0.0:8080
-      --project=borrowly-app
+  # 1. Full-Stack Single Container (React UI + Express Gateway + Python ML / MLOps)
+  borrowly-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: borrowly-fullstack
+    restart: unless-stopped
+    env_file:
+      - .env
     ports:
-      - "8080:8080"
+      - "3000:3000"  # Frontend & Node API Gateway
+      - "8000:8000"  # Python ML & MLOps Serving Microservice
     environment:
-      - CLOUDSDK_CORE_PROJECT=borrowly-app
-
-  ## Optional: Firebase Emulator Suite (Auth + Firestore + Storage)
-  ## Requires firebase-tools installed globally: npm i -g firebase-tools
-  ## Then run: firebase emulators:start
+      - PORT=3000
+      - NODE_ENV=production
+      - FIREBASE_SERVICE_ACCOUNT_PATH=/app/serviceAccountKey.json
+      - ML_SERVICE_HOST=127.0.0.1
+      - ML_SERVICE_PORT=8000
+    volumes:
+      - ./serviceAccountKey.json:/app/serviceAccountKey.json:ro
+      - ./.firebase_local:/app/.firebase_local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
