@@ -1,13 +1,43 @@
 import { useState, useEffect } from 'react';
 import { useFetch } from '../hooks/useFetch';
-import { mlopsApi } from '../api';
+import { mlopsApi, itemsApi } from '../api';
 import Button from '../components/common/Button';
 import ItemSkeleton from '../components/common/Skeleton';
 import ErrorBox from '../components/common/ErrorBox';
+import { CATEGORIES, AREAS } from '../utils/constants';
 
 export default function MLOpsPage() {
   const statsFetch = useFetch(() => mlopsApi.getStats(), []);
   const [autoRefresh, setAutoRefresh] = useState(true);
+
+  // Live test playground state
+  const [testCat, setTestCat] = useState('Electronics');
+  const [testBrand, setTestBrand] = useState('Sony');
+  const [testCond, setTestCond] = useState('Like new');
+  const [testArea, setTestArea] = useState('Adyar');
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+
+  const runTestPrediction = async () => {
+    try {
+      setTesting(true);
+      const [lat, lng] = AREAS[testArea] || AREAS.Adyar;
+      const res = await itemsApi.predictPrice({
+        category: testCat,
+        brand: testBrand,
+        condition: testCond,
+        area: testArea,
+        lat,
+        lng
+      });
+      setTestResult(res);
+      statsFetch.reload();
+    } catch (err) {
+      setTestResult({ error: err.message });
+    } finally {
+      setTesting(false);
+    }
+  };
 
   // Auto poll stats every 5 seconds if enabled
   useEffect(() => {
@@ -211,16 +241,115 @@ export default function MLOpsPage() {
         </div>
       </div>
 
+      {/* Interactive Model Playground / Live Test */}
+      <div className="rounded-3xl border border-line bg-gradient-to-r from-emerald-50/60 via-white to-stone-50 p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-line pb-3 mb-4">
+          <div>
+            <h3 className="text-base font-bold text-[#232826] flex items-center gap-2">
+              🧪 Live Inference Sandbox
+              <span className="rounded-full bg-forest text-white text-[10px] font-bold px-2 py-0.5">Test Pricing</span>
+            </h3>
+            <p className="text-xs text-mute">Test how brand tier, condition, and locality alter the regression model's output in real time.</p>
+          </div>
+          <Button
+            size="sm"
+            loading={testing}
+            onClick={runTestPrediction}
+          >
+            ⚡ Test Inference
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div>
+            <label className="font-semibold text-mute uppercase text-[10px] block mb-1">Category</label>
+            <select
+              value={testCat}
+              onChange={(e) => setTestCat(e.target.value)}
+              className="w-full rounded-xl border border-line bg-white p-2 text-xs text-[#232826] focus:border-forest"
+            >
+              {CATEGORIES.map(([name]) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="font-semibold text-mute uppercase text-[10px] block mb-1">Brand</label>
+            <input
+              type="text"
+              value={testBrand}
+              placeholder="e.g. Sony, Bosch, Generic"
+              onChange={(e) => setTestBrand(e.target.value)}
+              className="w-full rounded-xl border border-line bg-white p-2 text-xs text-[#232826] focus:border-forest"
+            />
+          </div>
+
+          <div>
+            <label className="font-semibold text-mute uppercase text-[10px] block mb-1">Condition</label>
+            <select
+              value={testCond}
+              onChange={(e) => setTestCond(e.target.value)}
+              className="w-full rounded-xl border border-line bg-white p-2 text-xs text-[#232826] focus:border-forest"
+            >
+              <option value="Like new">Like new</option>
+              <option value="Good">Good</option>
+              <option value="Fair">Fair</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="font-semibold text-mute uppercase text-[10px] block mb-1">Area</label>
+            <select
+              value={testArea}
+              onChange={(e) => setTestArea(e.target.value)}
+              className="w-full rounded-xl border border-line bg-white p-2 text-xs text-[#232826] focus:border-forest"
+            >
+              {Object.keys(AREAS).map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {testResult && (
+          <div className="mt-4 rounded-2xl bg-white p-3.5 border border-forest/30 flex items-center justify-between text-xs">
+            {testResult.error ? (
+              <span className="text-rose-600 font-semibold">{testResult.error}</span>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-[#232826]">
+                    Result: <span className="text-forest text-base font-black">₹{testResult.suggested_price}</span> / day
+                  </span>
+                  <span className="text-mute">
+                    (Confidence: ₹{testResult.price_low} – ₹{testResult.price_high})
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-mute">
+                  <span className="rounded bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5">
+                    {testResult.model_version || 'v1-Quantile'}
+                  </span>
+                  <span>{testResult.latency_ms || 25} ms</span>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Live Inference Logs & Prediction Stream */}
       <div className="rounded-3xl border border-line bg-white p-6 shadow-sm">
         <h3 className="text-base font-bold text-[#232826] mb-3">Live Inference Stream</h3>
         {telemetry.recent_pricing_samples?.length > 0 ? (
           <div className="space-y-2">
-            {telemetry.recent_pricing_samples.slice(-5).reverse().map((s, idx) => (
+            {telemetry.recent_pricing_samples.slice(-8).reverse().map((s, idx) => (
               <div key={idx} className="flex items-center justify-between rounded-xl bg-stone-50 px-3.5 py-2 text-xs border border-line">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-forest">💰 Price Suggestion</span>
-                  <span className="text-mute">({s.category})</span>
+                  <span className="text-mute">
+                    ({s.category}{s.brand ? ` · ${s.brand}` : ''}{s.condition ? ` · ${s.condition}` : ''})
+                  </span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-bold text-[#232826]">₹{s.suggested} (range ₹{s.low}–₹{s.high})</span>

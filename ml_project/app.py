@@ -166,7 +166,30 @@ def normalize_pricing_inputs(category: str, title: Optional[str], brand: Optiona
     }
     m_area = area_map.get(area_clean.lower(), "Adyar")
 
-    return m_cat, base_median, m_cond, m_brand, m_area
+    # 5. Multi-factor pricing multipliers (matching ground-truth training dynamics)
+    brand_factors = {
+        "Sony": 1.35, "Canon": 1.35, "Bosch": 1.35, "Yamaha": 1.35,
+        "Nikon": 1.05, "Dewalt": 1.00, "Giant": 1.00, "Epson": 1.00,
+        "Generic": 0.75, "Local": 0.75, "Hero": 0.85, "Ambrane": 0.80
+    }
+    b_factor = brand_factors.get(m_brand, 0.75 if m_brand in ["Generic", "Local"] else 1.0)
+
+    cond_factors = {
+        "new": 1.20,
+        "like_new": 1.05,
+        "good": 0.90,
+        "fair": 0.70
+    }
+    c_factor = cond_factors.get(m_cond, 0.90)
+
+    area_factors = {
+        "Nandambakkam": 1.00, "T Nagar": 1.15, "Adyar": 1.12, "Velachery": 1.00,
+        "Anna Nagar": 1.10, "Guindy": 1.05, "OMR": 1.08, "Tambaram": 0.88
+    }
+    a_factor = area_factors.get(m_area, 1.00)
+
+    multi_factor_median = round(base_median * b_factor * c_factor * a_factor, 0)
+    return m_cat, multi_factor_median, m_cond, m_brand, m_area
 
 class CandidateItem(BaseModel):
     id: str
@@ -201,10 +224,10 @@ def predict_pricing(req: PricingItemRequest):
 
     try:
         # Normalize inputs so they match the trained model's categorical spaces
-        m_cat, base_median, m_cond, m_brand, m_area = normalize_pricing_inputs(
+        m_cat, multi_median, m_cond, m_brand, m_area = normalize_pricing_inputs(
             req.category, req.title, req.brand, req.condition, req.area
         )
-        comp_med = req.comparable_median_price or base_median
+        comp_med = req.comparable_median_price or multi_median
         asking = req.asking_price_per_day or comp_med
         today_str = time.strftime("%Y-%m-%d")
 
@@ -238,10 +261,12 @@ def predict_pricing(req: PricingItemRequest):
         n = mlops_metrics["pricing_requests"]
         mlops_metrics["avg_pricing_latency_ms"] = round((mlops_metrics["avg_pricing_latency_ms"] * (n - 1) + latency) / n, 2)
         mlops_metrics["recent_price_predictions"].append({
-            "suggested": suggested,
-            "low": price_low,
-            "high": price_high,
+            "suggested": int(suggested),
+            "low": int(price_low),
+            "high": int(price_high),
             "category": req.category,
+            "brand": m_brand,
+            "condition": m_cond,
             "latency_ms": round(latency, 2),
             "timestamp": time.time()
         })
