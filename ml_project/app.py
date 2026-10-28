@@ -70,6 +70,7 @@ mlops_metrics = {
 # ----------------- Request Schemas -----------------
 class PricingItemRequest(BaseModel):
     category: str
+    title: Optional[str] = None
     brand: Optional[str] = "Generic"
     condition: Optional[str] = "Good"
     area: Optional[str] = "Adyar"
@@ -80,6 +81,92 @@ class PricingItemRequest(BaseModel):
     category_area_demand_30d: Optional[float] = 45.0
     rental_start_date: Optional[str] = None
     booking_date: Optional[str] = None
+
+def normalize_pricing_inputs(category: str, title: Optional[str], brand: Optional[str], condition: Optional[str], area: Optional[str]):
+    """
+    Maps frontend categories, brand names, and conditions to the exact values
+    known by the trained HistGradientBoosting model.
+    """
+    cat_str = (category or "").lower()
+    title_str = (title or "").lower()
+    combined = f"{cat_str} {title_str}"
+    
+    # 1. Category mapping to ['bike', 'camera', 'camping', 'drill', 'gaming', 'music', 'party', 'projector']
+    if any(k in combined for k in ["camera", "dslr", "lens", "canon", "nikon", "sony alpha", "tripod", "gopro", "photography"]):
+        m_cat = "camera"
+        base_median = 650.0
+    elif any(k in combined for k in ["projector", "screen", "display", "monitor", "home theater", "project"]):
+        m_cat = "projector"
+        base_median = 550.0
+    elif any(k in combined for k in ["game", "gaming", "playstation", "ps5", "ps4", "xbox", "nintendo", "console"]):
+        m_cat = "gaming"
+        base_median = 450.0
+    elif any(k in combined for k in ["speaker", "audio", "mic", "sound", "guitar", "music", "keyboard", "amplifier"]):
+        m_cat = "music"
+        base_median = 380.0
+    elif any(k in combined for k in ["tent", "camp", "trek", "backpack", "sleeping bag", "travel"]):
+        m_cat = "camping"
+        base_median = 350.0
+    elif any(k in combined for k in ["bike", "cycle", "bicycle", "racket", "badminton", "fitness", "sport", "roller", "gym"]):
+        m_cat = "bike"
+        base_median = 240.0
+    elif any(k in combined for k in ["party", "event", "celebration", "karaoke", "decorative", "lights"]):
+        m_cat = "party"
+        base_median = 550.0
+    elif any(k in combined for k in ["drill", "tool", "saw", "hammer", "wrench", "diy", "pressure washer", "cleaner"]):
+        m_cat = "drill"
+        base_median = 220.0
+    elif "electronics" in cat_str:
+        m_cat = "projector"
+        base_median = 480.0
+    elif "home" in cat_str or "kitchen" in cat_str:
+        m_cat = "drill"
+        base_median = 200.0
+    elif "book" in cat_str or "study" in cat_str:
+        m_cat = "drill"
+        base_median = 90.0
+    else:
+        m_cat = "drill"
+        base_median = 250.0
+
+    # 2. Condition mapping to ['fair', 'good', 'like_new', 'new']
+    cond_str = (condition or "").lower().replace(" ", "_").replace("-", "_")
+    if "like" in cond_str or "mint" in cond_str:
+        m_cond = "like_new"
+    elif "new" in cond_str:
+        m_cond = "new"
+    elif "fair" in cond_str or "worn" in cond_str:
+        m_cond = "fair"
+    else:
+        m_cond = "good"
+
+    # 3. Brand mapping to ['Ambrane', 'Bosch', 'Canon', 'Dewalt', 'Epson', 'Generic', 'Giant', 'Hero', 'Local', 'Nikon', 'Sony', 'Yamaha']
+    brand_raw = (brand or "").strip()
+    brand_lower = brand_raw.lower()
+    brand_map = {
+        "sony": "Sony", "canon": "Canon", "nikon": "Nikon", "bosch": "Bosch",
+        "dewalt": "Dewalt", "epson": "Epson", "yamaha": "Yamaha", "giant": "Giant",
+        "hero": "Hero", "ambrane": "Ambrane", "generic": "Generic", "local": "Local"
+    }
+    if brand_lower in brand_map:
+        m_brand = brand_map[brand_lower]
+    elif any(b in brand_lower for b in ["apple", "dji", "gopro", "bose", "jbl", "fuji", "panasonic", "sennheiser", "makita", "black+decker"]):
+        m_brand = "Sony"  # Premium tier proxy
+    elif any(b in brand_lower for b in ["quechua", "yonex", "karcher", "decathlon", "philips", "cosco", "samsung", "lg"]):
+        m_brand = "Dewalt"  # Mid tier proxy
+    else:
+        m_brand = "Generic"
+
+    # 4. Area mapping to ['Adyar', 'Anna Nagar', 'Guindy', 'Nandambakkam', 'OMR', 'T Nagar', 'Tambaram', 'Velachery']
+    area_clean = (area or "Adyar").replace(".", "").strip()
+    area_map = {
+        "adyar": "Adyar", "t nagar": "T Nagar", "velachery": "Velachery",
+        "anna nagar": "Anna Nagar", "guindy": "Guindy", "tambaram": "Tambaram",
+        "omr": "OMR", "nandambakkam": "Nandambakkam"
+    }
+    m_area = area_map.get(area_clean.lower(), "Adyar")
+
+    return m_cat, base_median, m_cond, m_brand, m_area
 
 class CandidateItem(BaseModel):
     id: str
@@ -113,26 +200,19 @@ def predict_pricing(req: PricingItemRequest):
         raise HTTPException(status_code=503, detail="Pricing model is not loaded")
 
     try:
-        # Default category medians if comparable_median_price not provided
-        cat_medians = {
-            "Electronics": 450.0,
-            "Cameras & Photography": 650.0,
-            "Tools & DIY": 300.0,
-            "Sports & Fitness": 250.0,
-            "Travel & Camping": 400.0,
-            "Home & Kitchen": 220.0,
-            "Books & Study": 90.0,
-            "Events & Party Supplies": 850.0
-        }
-        comp_med = req.comparable_median_price or cat_medians.get(req.category, 350.0)
+        # Normalize inputs so they match the trained model's categorical spaces
+        m_cat, base_median, m_cond, m_brand, m_area = normalize_pricing_inputs(
+            req.category, req.title, req.brand, req.condition, req.area
+        )
+        comp_med = req.comparable_median_price or base_median
         asking = req.asking_price_per_day or comp_med
         today_str = time.strftime("%Y-%m-%d")
 
         row = {
-            "category": req.category,
-            "brand": req.brand or "Generic",
-            "condition": req.condition or "Good",
-            "area": req.area or "Adyar",
+            "category": m_cat,
+            "brand": m_brand,
+            "condition": m_cond,
+            "area": m_area,
             "lat": req.lat or 13.0067,
             "lng": req.lng or 80.2574,
             "asking_price_per_day": asking,
@@ -169,10 +249,10 @@ def predict_pricing(req: PricingItemRequest):
             mlops_metrics["recent_price_predictions"].pop(0)
 
         return {
-            "suggested_price": suggested,
-            "price_low": min(price_low, suggested),
-            "price_high": max(price_high, suggested),
-            "comparable_median": comp_med,
+            "suggested_price": int(suggested),
+            "price_low": int(min(price_low, suggested)),
+            "price_high": int(max(price_high, suggested)),
+            "comparable_median": int(comp_med),
             "model_confidence": "80% prediction interval",
             "model_version": "v1-HistGradientBoostingRegressor",
             "latency_ms": round(latency, 2)

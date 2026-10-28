@@ -136,11 +136,12 @@ export default function ListItemPage() {
     return '';
   };
 
-  const handleFetchPriceSuggestion = async (cat, brand, cond, area) => {
+  const handleFetchPriceSuggestion = async (cat, brand, cond, area, title) => {
     try {
       setLoadingMlPrice(true);
       const [lat, lng] = AREAS[area || formData.area] || AREAS.Adyar;
       const res = await itemsApi.predictPrice({
+        title: title || formData.title,
         category: cat || formData.category,
         brand: brand || formData.brand || 'Generic',
         condition: cond || formData.condition || 'Good',
@@ -150,9 +151,7 @@ export default function ListItemPage() {
       });
       if (res && res.suggested_price) {
         setMlPricing(res);
-        if (!formData.price) {
-          setFormData((prev) => ({ ...prev, price: String(res.suggested_price) }));
-        }
+        setFormData((prev) => ({ ...prev, price: String(res.suggested_price) }));
       }
     } catch {
       // Ignore background ML fetch failure
@@ -170,8 +169,9 @@ export default function ListItemPage() {
     setErrorMsg('');
 
     if (currentStep < 6) {
-      if (currentStep === 2 && !mlPricing) {
-        handleFetchPriceSuggestion(formData.category, formData.brand, formData.condition, formData.area);
+      if (currentStep === 2) {
+        // Recalculate price dynamically with latest title, category, brand, and condition
+        handleFetchPriceSuggestion(formData.category, formData.brand, formData.condition, formData.area, formData.title);
       }
       setCurrentStep((step) => step + 1);
       return;
@@ -423,7 +423,7 @@ export default function ListItemPage() {
                     variant="ghost"
                     size="sm"
                     loading={loadingMlPrice}
-                    onClick={() => handleFetchPriceSuggestion(formData.category, formData.brand, formData.condition, formData.area)}
+                    onClick={() => handleFetchPriceSuggestion(formData.category, formData.brand, formData.condition, formData.area, formData.title)}
                   >
                     {mlPricing ? 'Recalculate' : '✨ Get AI Price'}
                   </Button>
